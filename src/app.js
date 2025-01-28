@@ -2,7 +2,7 @@ const Koa = require("koa");
 const cors = require("@koa/cors");
 const bodyParser = require("koa-bodyparser");
 require("dotenv").config();
-const connectDB = require("./config/db");
+const { connectDB } = require("./config/db");
 const authRoutes = require("./routes/auth");
 
 const app = new Koa();

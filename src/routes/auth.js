@@ -2,6 +2,7 @@ const Router = require("@koa/router");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const User = require("../models/user");
+const { Op } = require("sequelize");
 
 const router = new Router({
   prefix: "/api/auth",
@@ -12,7 +13,12 @@ router.post("/register", async (ctx) => {
   const { username, email, password } = ctx.request.body;
 
   // 检查用户是否已存在
-  const existingUser = await User.findOne({ $or: [{ email }, { username }] });
+  const existingUser = await User.findOne({
+    where: {
+      [Op.or]: [{ email: email }, { username: username }],
+    },
+  });
+
   if (existingUser) {
     ctx.status = 400;
     ctx.body = { message: "用户名或邮箱已存在" };
@@ -24,15 +30,19 @@ router.post("/register", async (ctx) => {
   const hashedPassword = await bcrypt.hash(password, salt);
 
   // 创建新用户
-  const user = new User({
-    username,
-    email,
-    password: hashedPassword,
-  });
+  try {
+    const user = await User.create({
+      username,
+      email,
+      password: hashedPassword,
+    });
 
-  await user.save();
-  ctx.status = 201;
-  ctx.body = { message: "注册成功" };
+    ctx.status = 201;
+    ctx.body = { message: "注册成功" };
+  } catch (error) {
+    ctx.status = 500;
+    ctx.body = { message: "创建用户失败" };
+  }
 });
 
 // 登录路由
@@ -40,7 +50,10 @@ router.post("/login", async (ctx) => {
   const { username, password } = ctx.request.body;
 
   // 查找用户
-  const user = await User.findOne({ username });
+  const user = await User.findOne({
+    where: { username },
+  });
+
   if (!user) {
     ctx.status = 400;
     ctx.body = { message: "用户名或密码错误" };
@@ -56,14 +69,14 @@ router.post("/login", async (ctx) => {
   }
 
   // 生成JWT令牌
-  const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, {
+  const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, {
     expiresIn: "24h",
   });
 
   ctx.body = {
     token,
     user: {
-      id: user._id,
+      id: user.id,
       username: user.username,
       email: user.email,
     },
