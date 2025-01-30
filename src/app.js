@@ -4,6 +4,8 @@ const bodyParser = require("koa-bodyparser");
 require("dotenv").config();
 const { connectDB } = require("./config/db");
 const authRoutes = require("./routes/auth");
+const imageRouter = require("./routes/image");
+const { initUnsplashSchedule } = require("./services/unsplashService");
 
 const app = new Koa();
 
@@ -29,6 +31,11 @@ app.use(async (ctx, next) => {
 // 路由
 app.use(authRoutes.routes());
 app.use(authRoutes.allowedMethods());
+app.use(imageRouter.routes());
+app.use(imageRouter.allowedMethods());
+
+// 初始化定时任务
+initUnsplashSchedule();
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {

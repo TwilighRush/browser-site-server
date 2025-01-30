@@ -15,7 +15,9 @@
     "koa": "^2.14.2",
     "koa-bodyparser": "^4.4.1",
     "mysql2": "^3.2.0",
-    "sequelize": "^6.31.0"
+    "sequelize": "^6.31.0",
+    "node-schedule": "^2.1.1",
+    "node-fetch": "^2.6.9"
   },
   "devDependencies": {
     "nodemon": "^2.0.22"

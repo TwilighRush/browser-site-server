@@ -5,7 +5,7 @@ const User = require("../models/user");
 const { Op } = require("sequelize");
 
 const router = new Router({
-  prefix: "/api/auth",
+  prefix: "/auth",
 });
 
 // 注册路由
@@ -56,7 +56,10 @@ router.post("/login", async (ctx) => {
 
   if (!user) {
     ctx.status = 400;
-    ctx.body = { message: "用户名或密码错误" };
+    ctx.body = {
+      failed: true,
+      message: "用户名或密码错误",
+    };
     return;
   }
 
@@ -64,7 +67,10 @@ router.post("/login", async (ctx) => {
   const validPassword = await bcrypt.compare(password, user.password);
   if (!validPassword) {
     ctx.status = 400;
-    ctx.body = { message: "用户名或密码错误" };
+    ctx.body = {
+      failed: true,
+      message: "用户名或密码错误",
+    };
     return;
   }
 
