@@ -6,6 +6,7 @@ const { connectDB } = require("./config/db");
 const authRoutes = require("./routes/auth");
 const imageRouter = require("./routes/image");
 const { initUnsplashSchedule } = require("./services/unsplashService");
+const quicklinksRouter = require("./routes/quicklinks");
 
 const app = new Koa();
 
@@ -33,6 +34,8 @@ app.use(authRoutes.routes());
 app.use(authRoutes.allowedMethods());
 app.use(imageRouter.routes());
 app.use(imageRouter.allowedMethods());
+app.use(quicklinksRouter.routes());
+app.use(quicklinksRouter.allowedMethods());
 
 // 初始化定时任务
 initUnsplashSchedule();

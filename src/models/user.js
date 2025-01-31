@@ -24,6 +24,10 @@ const User = sequelize.define(
         len: [6, 100],
       },
     },
+    refreshToken: {
+      type: DataTypes.STRING,
+      allowNull: true,
+    },
     createdAt: {
       type: DataTypes.DATE,
       defaultValue: DataTypes.NOW,
@@ -31,6 +35,11 @@ const User = sequelize.define(
     updatedAt: {
       type: DataTypes.DATE,
       defaultValue: DataTypes.NOW,
+    },
+    quickLinks: {
+      type: DataTypes.JSON,
+      defaultValue: [],
+      allowNull: true,
     },
   },
   {
