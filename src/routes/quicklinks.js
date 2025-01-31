@@ -7,12 +7,7 @@ const router = new Router({ prefix: "/api/quicklinks" });
 // 获取用户的快捷链接
 router.get("/", auth, async (ctx) => {
   try {
-    console.log(ctx.state);
-
     const user = await User.findOne({ where: { id: ctx.state.user.userId } });
-    console.log(user);
-    console.log("===========================");
-    console.log(ctx.state.user.id);
     if (!user) {
       ctx.status = 404;
       ctx.body = {
@@ -21,7 +16,10 @@ router.get("/", auth, async (ctx) => {
       };
       return;
     }
-    ctx.body = user.quickLinks || [];
+    ctx.body = {
+      data: user.quickLinks || [],
+      success: true,
+    };
   } catch (error) {
     console.log(error);
     ctx.status = 500;
@@ -35,7 +33,8 @@ router.get("/", auth, async (ctx) => {
 // 更新用户的快捷链接
 router.post("/", auth, async (ctx) => {
   try {
-    const user = await User.findByPk(ctx.state.user.id);
+    const user = await User.findOne({ where: { id: ctx.state.user.userId } });
+
     if (!user) {
       ctx.status = 404;
       ctx.body = {
@@ -46,7 +45,10 @@ router.post("/", auth, async (ctx) => {
     }
     user.quickLinks = ctx.request.body.links;
     await user.save();
-    ctx.body = user.quickLinks;
+    ctx.body = {
+      data: user.quickLinks,
+      success: true,
+    };
   } catch (error) {
     ctx.status = 500;
     ctx.body = {
