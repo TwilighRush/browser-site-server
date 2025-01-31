@@ -10,18 +10,19 @@ const router = new Router({
 
 // 注册路由
 router.post("/register", async (ctx) => {
-  const { username, email, password } = ctx.request.body;
+  const { username, password } = ctx.request.body;
 
   // 检查用户是否已存在
   const existingUser = await User.findOne({
-    where: {
-      [Op.or]: [{ email: email }, { username: username }],
-    },
+    where: { username },
   });
 
   if (existingUser) {
     ctx.status = 400;
-    ctx.body = { message: "用户名或邮箱已存在" };
+    ctx.body = {
+      failed: true,
+      message: "该邮箱已被注册",
+    };
     return;
   }
 
@@ -33,15 +34,29 @@ router.post("/register", async (ctx) => {
   try {
     const user = await User.create({
       username,
-      email,
       password: hashedPassword,
     });
 
-    ctx.status = 201;
-    ctx.body = { message: "注册成功" };
+    // 生成JWT令牌
+    const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, {
+      expiresIn: "24h",
+    });
+
+    ctx.status = 200;
+    ctx.body = {
+      token,
+      user: {
+        id: user.id,
+        username: user.username,
+      },
+    };
   } catch (error) {
+    console.log(error);
     ctx.status = 500;
-    ctx.body = { message: "创建用户失败" };
+    ctx.body = {
+      failed: true,
+      message: "注册失败，请稍后重试",
+    };
   }
 });
 
@@ -84,7 +99,6 @@ router.post("/login", async (ctx) => {
     user: {
       id: user.id,
       username: user.username,
-      email: user.email,
     },
   };
 });
