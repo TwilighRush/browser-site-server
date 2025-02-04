@@ -127,81 +127,129 @@ router.post("/login", async (ctx) => {
 // 修改刷新 token 的路由
 router.post("/refresh", async (ctx) => {
   try {
-    const { refreshToken } = ctx.request.body;
+    const token = ctx.headers.authorization?.split(" ")[1];
 
-    if (!refreshToken) {
-      ctx.status = 400;
-      ctx.body = {
-        failed: true,
-        message: "Refresh token is required",
-      };
-      return;
-    }
-
-    // 验证 refresh token
-    const decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET);
-
-    // 查找用户并验证 refreshToken
-    const user = await User.findOne({
-      where: {
-        id: decoded.userId,
-        refreshToken: refreshToken,
-      },
-    });
-
-    if (!user) {
+    if (!token) {
       ctx.status = 401;
       ctx.body = {
         failed: true,
-        message: "Invalid refresh token",
+        message: "No token provided",
       };
       return;
     }
 
-    // 生成新的 token 和 refresh token
-    const tokens = await generateTokens(user);
+    let userId;
+    try {
+      // 尝试解析 token
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      userId = decoded.userId;
+    } catch (error) {
+      // 如果 token 过期，尝试从 token 中提取 userId
+      try {
+        const decoded = jwt.decode(token);
+        userId = decoded.userId;
+      } catch (error) {
+        ctx.status = 401;
+        ctx.body = {
+          failed: true,
+          message: "Invalid token format",
+        };
+        return;
+      }
+    }
+
+    // 使用 userId 查找用户
+    const user = await User.findByPk(userId);
+    if (!user || !user.refreshToken) {
+      ctx.status = 401;
+      ctx.body = {
+        failed: true,
+        message: "Invalid token or refresh token",
+      };
+      return;
+    }
+
+    let needNewRefreshToken = false;
+    // 验证数据库中存储的 refresh token
+    try {
+      jwt.verify(user.refreshToken, process.env.JWT_REFRESH_SECRET);
+    } catch (error) {
+      // refreshToken 过期了，需要生成新的
+      needNewRefreshToken = true;
+    }
+
+    // 生成新的 access token
+    const newToken = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, {
+      expiresIn: "10s",
+    });
+
+    // 如果 refresh token 过期了，生成新的并保存到数据库
+    if (needNewRefreshToken) {
+      const newRefreshToken = jwt.sign(
+        { userId: user.id },
+        process.env.JWT_REFRESH_SECRET,
+        {
+          expiresIn: "7d",
+        }
+      );
+      await user.update({ refreshToken: newRefreshToken });
+    }
 
     ctx.body = {
-      ...tokens,
+      token: newToken,
       user: {
         id: user.id,
         username: user.username,
       },
     };
   } catch (error) {
-    if (error.name === "TokenExpiredError") {
-      ctx.status = 401;
-      ctx.body = {
-        failed: true,
-        message: "Refresh token has expired",
-      };
-    } else {
-      ctx.status = 401;
-      ctx.body = {
-        failed: true,
-        message: "Invalid refresh token",
-      };
-    }
+    console.error("Refresh token error:", error);
+    ctx.status = 500;
+    ctx.body = {
+      failed: true,
+      message: "Token refresh failed",
+    };
   }
 });
 
 // 添加登出路由
 router.post("/logout", async (ctx) => {
   try {
-    const { refreshToken } = ctx.request.body;
+    // 从 authorization header 获取 token
+    const token = ctx.headers.authorization?.split(" ")[1];
 
-    if (refreshToken) {
+    if (!token) {
+      ctx.status = 401;
+      ctx.body = {
+        failed: true,
+        message: "No token provided",
+      };
+      return;
+    }
+
+    try {
+      // 解析 token 获取用户 ID
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
       // 查找并清除用户的 refreshToken
-      const user = await User.findOne({ where: { refreshToken } });
+      const user = await User.findByPk(decoded.userId);
       if (user) {
         await user.update({ refreshToken: null });
       }
-    }
 
-    ctx.body = {
-      message: "Logged out successfully",
-    };
+      ctx.body = {
+        success: true,
+        message: "Logged out successfully",
+      };
+    } catch (error) {
+      ctx.status = 401;
+      ctx.body = {
+        failed: true,
+        message: "Invalid token",
+      };
+    }
   } catch (error) {
+    console.error("Logout error:", error);
     ctx.status = 500;
     ctx.body = {
       failed: true,
